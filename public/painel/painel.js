@@ -1,21 +1,143 @@
-let respostas=[];const $=s=>document.querySelector(s);const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-function avg(k){if(!respostas.length)return null;return respostas.reduce((a,r)=>a+(+r[k]||0),0)/respostas.length}
-function norm(v){return String(v??'').trim().replace(/[.]+$/,'').trim()}
-function counts(k){return respostas.reduce((o,r)=>{const v=norm(r[k])||'Não informado';o[v]=(o[v]||0)+1;return o},{})}
-function textCounts(k){return respostas.reduce((o,r)=>{const raw=norm(r[k]);if(!raw)return o;const key=Object.keys(o).find(x=>x.toLocaleLowerCase('pt-BR')===raw.toLocaleLowerCase('pt-BR'))||raw;o[key]=(o[key]||0)+1;return o},{})}
-function sorted(obj){return Object.entries(obj).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'pt-BR'))}
-function bars(el,obj,limit=99){const entries=sorted(obj).slice(0,limit),total=Object.values(obj).reduce((a,b)=>a+b,0),max=Math.max(1,...entries.map(x=>x[1]));el.innerHTML=entries.map(([k,v],i)=>`<div class="barrow"><span>${i<3&&limit<=5?`<b class="rank">${i+1}º</b> `:''}${esc(k)}</span><div class="track"><div class="fill" style="width:${v/max*100}%"></div></div><b>${v}<small>${total?` · ${Math.round(v/total*100)}%`:''}</small></b></div>`).join('')||'<span class="empty">Sem dados suficientes ainda.</span>'}
-function top(obj){return sorted(obj)[0]||null}
-function fmtDate(v){if(!v)return 'Data não informada';const d=new Date(v.endsWith('Z')?v:v.replace(' ','T')+'Z');if(Number.isNaN(d.getTime()))return esc(v);return d.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short',timeZone:'America/Sao_Paulo'})}
-function sobremesas(r){try{return JSON.parse(r.sobremesas||'[]').join(', ')||r.sobremesa_outra||'Não informado'}catch{return r.sobremesa_outra||'Não informado'}}
-function render(){
- const av=k=>{const v=avg(k);return v===null?'–':v.toFixed(1)};$('#total').textContent=respostas.length;$('#mediaQualidade').textContent=av('qualidade')+'/5';$('#mediaVariedade').textContent=av('variedade')+'/5';$('#mediaAtendimento').textContent=av('atendimento')+'/5';$('#mediaLimpeza').textContent=av('limpeza')+'/5';$('#mediaCusto').textContent=av('custo_beneficio')+'/5';$('#mediaRec').textContent=av('recomendacao');
- const fav=textCounts('prato_favorito'),des=textCounts('prato_desejado'),compra=counts('compraria_sobremesa');bars($('#favoritos'),fav,5);bars($('#desejados'),des,5);bars($('#sobremesaCompra'),compra);bars($('#frequencia'),counts('frequencia'));bars($('#recomendacao'),counts('recomendacao'));
- const sc={};respostas.forEach(r=>{try{JSON.parse(r.sobremesas||'[]').forEach(x=>{x=norm(x);if(x)sc[x]=(sc[x]||0)+1})}catch{}if(r.sobremesa_outra){const x='Outra: '+norm(r.sobremesa_outra);sc[x]=(sc[x]||0)+1}});bars($('#sobremesas'),sc,5);
- const tf=top(fav),td=top(des);$('#topFavorito').textContent=tf?tf[0]:'–';$('#topFavoritoQtd').textContent=tf?`${tf[1]} ${tf[1]===1?'menção':'menções'}`:'Sem dados';$('#topDesejado').textContent=td?td[0]:'–';$('#topDesejadoQtd').textContent=td?`${td[1]} ${td[1]===1?'pedido':'pedidos'}`:'Sem dados';
- const sim=Object.entries(compra).filter(([k])=>k.toLowerCase().includes('sim')).reduce((a,[,v])=>a+v,0);$('#pctSobremesa').textContent=respostas.length?Math.round(sim/respostas.length*100)+'%':'–';
- const medias=[['Comida',avg('qualidade')],['Variedade',avg('variedade')],['Atendimento',avg('atendimento')],['Limpeza',avg('limpeza')],['Custo-benefício',avg('custo_beneficio')]].filter(x=>x[1]!==null).sort((a,b)=>a[1]-b[1]);$('#pontoAtencao').textContent=medias.length?medias[0][0]:'–';$('#pontoAtencaoMedia').textContent=medias.length?`Média ${medias[0][1].toFixed(1)}/5`:'Menor média da pesquisa';renderCards(respostas)
+let respostas = [];
+const $ = (s) => document.querySelector(s);
+const esc = (value) => String(value ?? '')
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&#39;');
+
+function avg(key) {
+  if (!respostas.length) return null;
+  return respostas.reduce((sum, r) => sum + (Number(r[key]) || 0), 0) / respostas.length;
 }
-function renderCards(arr){const ordered=[...arr].sort((a,b)=>String(b.criado_em||'').localeCompare(String(a.criado_em||'')));$('#responseCards').innerHTML=ordered.map((r,i)=>`<article class="response-card"><div class="response-head"><div><span class="response-number">Resposta #${ordered.length-i}</span><strong>${fmtDate(r.criado_em)}</strong></div><span class="recommend-badge">Recomendação ${esc(r.recomendacao)}/10</span></div><div class="ratings"><span>Comida <b>${esc(r.qualidade)}/5</b></span><span>Variedade <b>${esc(r.variedade)}/5</b></span><span>Atendimento <b>${esc(r.atendimento)}/5</b></span><span>Limpeza <b>${esc(r.limpeza)}/5</b></span><span>Custo-benefício <b>${esc(r.custo_beneficio)}/5</b></span></div><div class="answer-grid"><div><small>Frequência</small><p>${esc(r.frequencia||'Não informado')}</p></div><div><small>Prato favorito</small><p>${esc(r.prato_favorito||'Não informado')}</p></div><div><small>Prato que gostaria de encontrar</small><p>${esc(r.prato_desejado||'Não informado')}</p></div><div><small>Compraria sobremesa?</small><p>${esc(r.compraria_sobremesa||'Não informado')}</p></div><div><small>Sobremesas escolhidas</small><p>${esc(sobremesas(r))}</p></div><div class="comment"><small>Sugestão, elogio ou comentário</small><p>${esc(r.comentario||'Nenhum comentário.')}</p></div></div></article>`).join('')||'<div class="empty empty-box">Nenhuma resposta ainda.</div>'}
-async function load(){$('#loading').hidden=false;$('#errorPanel').hidden=true;try{const r=await fetch('/api/painel',{cache:'no-store'});if(!r.ok)throw new Error(r.status===401?'Acesso não autorizado.':'Não foi possível carregar os resultados.');const d=await r.json();respostas=d.respostas||[];render();$('#dashboard').hidden=false;$('#loading').hidden=true}catch(e){$('#loading').hidden=true;$('#errorPanel').textContent=e.message;$('#errorPanel').hidden=false}}
-$('#refresh').onclick=load;$('#busca').addEventListener('input',e=>{const q=e.target.value.toLocaleLowerCase('pt-BR');renderCards(respostas.filter(r=>JSON.stringify(r).toLocaleLowerCase('pt-BR').includes(q)))});load();
+function norm(value) { return String(value ?? '').trim().replace(/[.]+$/, '').trim(); }
+function counts(key) {
+  return respostas.reduce((out, r) => {
+    const value = norm(r[key]) || 'Não informado';
+    out[value] = (out[value] || 0) + 1;
+    return out;
+  }, {});
+}
+function textCounts(key) {
+  return respostas.reduce((out, r) => {
+    const raw = norm(r[key]);
+    if (!raw) return out;
+    const found = Object.keys(out).find((x) => x.toLocaleLowerCase('pt-BR') === raw.toLocaleLowerCase('pt-BR'));
+    const value = found || raw;
+    out[value] = (out[value] || 0) + 1;
+    return out;
+  }, {});
+}
+function sorted(obj) { return Object.entries(obj).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR')); }
+function bars(el, obj, limit = 99) {
+  if (!el) return;
+  const entries = sorted(obj).slice(0, limit);
+  const total = Object.values(obj).reduce((a, b) => a + b, 0);
+  const max = Math.max(1, ...entries.map((x) => x[1]));
+  el.innerHTML = entries.map(([key, value], i) => {
+    const rank = i < 3 && limit <= 5 ? '<b class="rank">' + (i + 1) + 'º</b> ' : '';
+    const pct = total ? ' · ' + Math.round(value / total * 100) + '%' : '';
+    return '<div class="barrow"><span>' + rank + esc(key) + '</span><div class="track"><div class="fill" style="width:' + (value / max * 100) + '%"></div></div><b>' + value + '<small>' + pct + '</small></b></div>';
+  }).join('') || '<span class="empty">Sem dados suficientes ainda.</span>';
+}
+function top(obj) { return sorted(obj)[0] || null; }
+function fmtDate(value) {
+  if (!value) return 'Data não informada';
+  const raw = String(value).replace(' ', 'T');
+  const date = new Date(raw.endsWith('Z') ? raw : raw + 'Z');
+  if (Number.isNaN(date.getTime())) return esc(value);
+  return date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' });
+}
+function sobremesasDaResposta(r) {
+  try {
+    const list = JSON.parse(r.sobremesas || '[]');
+    const text = Array.isArray(list) ? list.join(', ') : '';
+    return text || r.sobremesa_outra || 'Não informado';
+  } catch (e) {
+    return r.sobremesa_outra || 'Não informado';
+  }
+}
+function render() {
+  const av = (key) => { const value = avg(key); return value === null ? '–' : value.toFixed(1); };
+  $('#total').textContent = respostas.length;
+  $('#mediaQualidade').textContent = av('qualidade') + '/5';
+  $('#mediaVariedade').textContent = av('variedade') + '/5';
+  $('#mediaAtendimento').textContent = av('atendimento') + '/5';
+  $('#mediaLimpeza').textContent = av('limpeza') + '/5';
+  $('#mediaCusto').textContent = av('custo_beneficio') + '/5';
+  $('#mediaRec').textContent = av('recomendacao');
+
+  const favoritos = textCounts('prato_favorito');
+  const desejados = textCounts('prato_desejado');
+  const compra = counts('compraria_sobremesa');
+  bars($('#favoritos'), favoritos, 5);
+  bars($('#desejados'), desejados, 5);
+  bars($('#sobremesaCompra'), compra);
+  bars($('#frequencia'), counts('frequencia'));
+  bars($('#recomendacao'), counts('recomendacao'));
+
+  const sc = {};
+  respostas.forEach((r) => {
+    try {
+      const list = JSON.parse(r.sobremesas || '[]');
+      if (Array.isArray(list)) list.forEach((x) => { x = norm(x); if (x) sc[x] = (sc[x] || 0) + 1; });
+    } catch (e) {}
+    if (r.sobremesa_outra) {
+      const x = 'Outra: ' + norm(r.sobremesa_outra);
+      sc[x] = (sc[x] || 0) + 1;
+    }
+  });
+  bars($('#sobremesas'), sc, 5);
+
+  const tf = top(favoritos), td = top(desejados);
+  $('#topFavorito').textContent = tf ? tf[0] : '–';
+  $('#topFavoritoQtd').textContent = tf ? tf[1] + (tf[1] === 1 ? ' menção' : ' menções') : 'Sem dados';
+  $('#topDesejado').textContent = td ? td[0] : '–';
+  $('#topDesejadoQtd').textContent = td ? td[1] + (td[1] === 1 ? ' pedido' : ' pedidos') : 'Sem dados';
+
+  const sim = Object.entries(compra).filter(([key]) => key.toLocaleLowerCase('pt-BR').includes('sim')).reduce((sum, item) => sum + item[1], 0);
+  $('#pctSobremesa').textContent = respostas.length ? Math.round(sim / respostas.length * 100) + '%' : '–';
+
+  const medias = [
+    ['Comida', avg('qualidade')], ['Variedade', avg('variedade')], ['Atendimento', avg('atendimento')],
+    ['Limpeza', avg('limpeza')], ['Custo-benefício', avg('custo_beneficio')]
+  ].filter((x) => x[1] !== null).sort((a, b) => a[1] - b[1]);
+  $('#pontoAtencao').textContent = medias.length ? medias[0][0] : '–';
+  $('#pontoAtencaoMedia').textContent = medias.length ? 'Média ' + medias[0][1].toFixed(1) + '/5' : 'Menor média da pesquisa';
+  renderCards(respostas);
+}
+function renderCards(arr) {
+  const ordered = [...arr].sort((a, b) => String(b.criado_em || '').localeCompare(String(a.criado_em || '')));
+  const el = $('#responseCards');
+  if (!el) return;
+  el.innerHTML = ordered.map((r, i) => {
+    return '<article class="response-card">' +
+      '<div class="response-head"><div><span class="response-number">Resposta #' + (ordered.length - i) + '</span><strong>' + fmtDate(r.criado_em) + '</strong></div><span class="recommend-badge">Recomendação ' + esc(r.recomendacao) + '/10</span></div>' +
+      '<div class="ratings"><span>Comida <b>' + esc(r.qualidade) + '/5</b></span><span>Variedade <b>' + esc(r.variedade) + '/5</b></span><span>Atendimento <b>' + esc(r.atendimento) + '/5</b></span><span>Limpeza <b>' + esc(r.limpeza) + '/5</b></span><span>Custo-benefício <b>' + esc(r.custo_beneficio) + '/5</b></span></div>' +
+      '<div class="answer-grid"><div><small>Frequência</small><p>' + esc(r.frequencia || 'Não informado') + '</p></div><div><small>Prato favorito</small><p>' + esc(r.prato_favorito || 'Não informado') + '</p></div><div><small>Prato que gostaria de encontrar</small><p>' + esc(r.prato_desejado || 'Não informado') + '</p></div><div><small>Compraria sobremesa?</small><p>' + esc(r.compraria_sobremesa || 'Não informado') + '</p></div><div><small>Sobremesas escolhidas</small><p>' + esc(sobremesasDaResposta(r)) + '</p></div><div class="comment"><small>Sugestão, elogio ou comentário</small><p>' + esc(r.comentario || 'Nenhum comentário.') + '</p></div></div></article>';
+  }).join('') || '<div class="empty empty-box">Nenhuma resposta ainda.</div>';
+}
+async function load() {
+  $('#loading').hidden = false;
+  $('#errorPanel').hidden = true;
+  try {
+    const response = await fetch('/api/painel', { cache: 'no-store' });
+    if (!response.ok) throw new Error(response.status === 401 ? 'Acesso não autorizado.' : 'Não foi possível carregar os resultados.');
+    const data = await response.json();
+    respostas = data.respostas || [];
+    render();
+    $('#dashboard').hidden = false;
+    $('#loading').hidden = true;
+  } catch (e) {
+    $('#loading').hidden = true;
+    $('#errorPanel').textContent = e.message;
+    $('#errorPanel').hidden = false;
+  }
+}
+$('#refresh').onclick = load;
+$('#busca').addEventListener('input', (e) => {
+  const q = e.target.value.toLocaleLowerCase('pt-BR');
+  renderCards(respostas.filter((r) => JSON.stringify(r).toLocaleLowerCase('pt-BR').includes(q)));
+});
+load();
