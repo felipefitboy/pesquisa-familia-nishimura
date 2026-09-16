@@ -68,6 +68,10 @@ export default {
       if (request.method !== 'GET') return new Response('Method Not Allowed', { status:405, headers:{Allow:'GET'} });
       return carregarPainel(request, env);
     }
+    if (url.pathname === '/painel' || url.pathname.startsWith('/painel/')) {
+      if (!authOK(request, env)) return unauthorized();
+      return env.ASSETS.fetch(request);
+    }
     return env.ASSETS.fetch(request);
   },
 };
