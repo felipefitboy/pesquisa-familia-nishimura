@@ -9,5 +9,12 @@
     "run_worker_first": ["/api/*"],
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pesquisa-familia-nishimura-db",
+      "database_id": "fefb472c-ded3-47fa-90b8-3062b4c016c0"
+    }
+  ]
 }
